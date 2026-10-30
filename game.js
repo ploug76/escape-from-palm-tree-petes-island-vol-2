@@ -147,6 +147,9 @@ function floorUnder(x,y){// returns surface y if standing at (x,y)
  const c=Math.floor(x/T),ri=Math.floor((y+1)/T);const ch=tile(c,ri);return ch}
 /* ---------- hero physics ---------- */
 function ladderAt(x,y){for(const l of G.lv.ladders)if(Math.abs(x-l.x)<T*.55&&y>l.y0-2&&y<=l.y1+1)return l;return null}
+/* respawn fix (Oct 30): a fall while blinking costs nothing (back on solid ground, backed off the edge) */
+function rfOk(x,y,m){for(let xx=x-m;xx<=x+m;xx+=4){if(!solidAt(xx,y+2)||solidAt(xx,y-6)||solidAt(xx,y-40))return false}return true}
+function rfRestore(H){const s=H.safe||{x:G.cp.x,y:G.cp.fy};const d=Math.sign(H.x-s.x)||H.f||1;let x=s.x,k=0;while(k<400&&rfOk(x+d*(k+4),s.y,10))k+=4;if(k<30){for(let n=30-k;n>0;n-=4)if(rfOk(s.x-d*n,s.y,10)){x=s.x-d*n;break}}Object.assign(H,{x,y:s.y,fy:s.y,vx:0,vy:0,onG:true,climb:null,drop:0});H.inv=Math.max(H.inv,1);return true}
 function heroUpdate(dt){const H=G.hero,L=G.L;if(H.inv>0)H.inv-=dt;if(H.punchT>0)H.punchT-=dt;if(H.drop>0)H.drop-=dt;
  const run=IN.run,dir=IN.dir;
  // ladder
@@ -177,7 +180,8 @@ function heroUpdate(dt){const H=G.hero,L=G.L;if(H.inv>0)H.inv-=dt;if(H.punchT>0)
  if(!H.onG&&wasG&&H.vy>=0)H.coyote=.1;
  if(H.onG){H.fy=H.y;if(!wasG&&oy<H.y-2)K.burst(H.x,H.y,['#e8d3a0','#fff'],4,60,{g:200,life:.4,size:.7})}
  H.gait.update(H.onG?H.x-ox:0,dt);
- if(H.y>NR*T+40){if(!L.boss){K.sfx('splash');K.burst(H.x,NR*T,['#6ad0ff','#fff'],20,200);hurt('splash')}}
+ if(H.onG&&!H.climb&&rfOk(H.x,H.y,22))H.safe={x:H.x,y:H.y};
+ if(H.y>NR*T+40){if(!L.boss){if(H.inv>0&&rfRestore(H))return;K.sfx('splash');K.burst(H.x,NR*T,['#6ad0ff','#fff'],20,200);hurt('splash')}}
  H.hidden=H.crouch&&inBush(H)}
 function inBush(H){for(const b of G.lv.bushes)if(Math.abs(H.x-b.x)<b.w*.42&&Math.abs(H.y-b.fy)<4)return b;return null}
 /* ---------- trail + kids ---------- */
